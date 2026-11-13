@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Careers | TalentDesk</title>
+  <style>
+    :root{font-family:Segoe UI,Arial,sans-serif;color:#182230;background:#f4f6fa}*{box-sizing:border-box}body{margin:0}
+    header{background:#14263d;color:#fff;padding:22px max(20px,calc((100vw - 1060px)/2));display:flex;justify-content:space-between;align-items:center}
+    header a{color:#d5e5f4}.brand{font-size:21px;font-weight:700}.brand span{color:#51c6a4}
+    main{max-width:1060px;margin:36px auto;padding:0 20px}.intro{margin-bottom:26px}h1{font-size:30px;margin:0 0 8px}h2{font-size:20px;margin:0 0 8px}.muted{color:#66768a;line-height:1.55}
+    .toolbar{display:flex;gap:10px;margin:18px 0}input,select,textarea,button{font:inherit}input,select,textarea{width:100%;border:1px solid #d6dee8;border-radius:8px;padding:11px;background:white}input[type=search]{max-width:440px}
+    button,.button{border:0;border-radius:8px;padding:10px 15px;background:#176d5b;color:white;cursor:pointer;text-decoration:none}.job-list{display:grid;gap:14px}.job{background:white;border:1px solid #e4eaf0;border-radius:12px;padding:20px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.job p{margin:8px 0}.badge{display:inline-block;background:#e8f4ef;border-radius:20px;padding:5px 9px;margin:2px;color:#245d4b;font-size:12px}
+    .empty,.loading{background:#fff;border-radius:10px;padding:28px;text-align:center;color:#6b798b}.error,.success{padding:12px;border-radius:8px;margin:12px 0;display:none}.error{background:#fff0ee;color:#a93226}.success{background:#eaf8f1;color:#176c48}
+    dialog{border:0;border-radius:14px;width:min(680px,calc(100vw - 24px));padding:24px;box-shadow:0 18px 60px #10223840}dialog::backdrop{background:#10223880}.dialog-head{display:flex;justify-content:space-between;align-items:center}.close{background:#edf1f5;color:#26384d}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.field{display:grid;gap:6px;color:#526174;font-size:13px}.full{grid-column:1/-1}.check{display:flex;align-items:flex-start;gap:9px;color:#526174;font-size:13px;line-height:1.4}.check input{width:auto;margin-top:3px}.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+    @media(max-width:600px){main{margin:24px auto}.job{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.full{grid-column:auto}.toolbar{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <header><div class="brand">Talent<span>Desk</span> Careers</div><a href="/ui/">Staff sign in</a></header>
+  <main>
+    <section class="intro"><h1>Find your next opportunity</h1><p class="muted">Explore current openings and apply directly. Candidate applications are separate from staff accounts; no candidate password or account is created.</p></section>
+    <div id="error" class="error" role="alert"></div><div id="success" class="success" role="status"></div>
+    <div class="toolbar"><input id="search" type="search" placeholder="Search role, department, or location"><button id="search-button">Search jobs</button></div>
+    <section id="jobs" class="job-list"><div class="loading">Loading open positions…</div></section>
+  </main>
+  <dialog id="apply-dialog">
+    <div class="dialog-head"><div><h2 id="job-title">Apply</h2><div id="job-meta" class="muted"></div></div><button class="close" type="button" id="close-dialog">Close</button></div>
+    <div id="form-error" class="error" role="alert"></div>
+    <form id="apply-form">
+      <div class="grid">
+        <label class="field">First name<input name="first_name" required maxlength="100" autocomplete="given-name"></label>
+        <label class="field">Last name<input name="last_name" required maxlength="100" autocomplete="family-name"></label>
+        <label class="field full">Email<input name="email" type="email" required maxlength="320" autocomplete="email"></label>
+        <label class="field">Phone<input name="phone" maxlength="32" autocomplete="tel"></label>
+        <label class="field">Location<input name="location" maxlength="160" autocomplete="address-level2"></label>
+        <label class="field">Experience (months)<input name="total_experience_months" type="number" min="0" max="1200" value="0" required></label>
+        <label class="field">Education level<select name="education_level"><option value="">Not provided</option><option>SECONDARY</option><option>ASSOCIATE</option><option>BACHELOR</option><option>MASTER</option><option>DOCTORATE</option><option>OTHER</option></select></label>
+        <label class="field full">Skills (comma separated)<input name="skills" maxlength="500" placeholder="e.g. Python, SQL, project management"></label>
+        <label class="field full">Education summary<textarea name="education_summary" maxlength="500" rows="2"></textarea></label>
+        <label class="check full"><input name="privacy_consent" type="checkbox" required> I consent to the recruiting team using the information I provide to process this application.</label>
+      </div>
+      <p class="muted">This demo does not accept resume uploads or provide candidate accounts/application tracking.</p>
+      <div class="actions"><button type="button" class="close" id="cancel-apply">Cancel</button><button type="submit">Submit application</button></div>
+    </form>
+  </dialog>
+  <script>
+    const api='/api/v1';
+    const $=id=>document.getElementById(id);
+    let selectedJob=null;
+    function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function showError(message,target='error'){const node=$(target);node.textContent=message;node.style.display='block';$('success').style.display='none';}
+    function money(job){if(job.min_salary==null||job.max_salary==null)return 'Compensation discussed during hiring';return `${esc(job.currency_code||'')} ${Number(job.min_salary).toLocaleString()}–${Number(job.max_salary).toLocaleString()} / ${esc(job.compensation_period||'')}`;}
+    async function loadJobs(){ $('error').style.display='none';$('jobs').innerHTML='<div class="loading">Loading open positions…</div>';try{const url=`${api}/public/jobs?limit=100&search=${encodeURIComponent($('search').value)}`;const response=await fetch(url);if(!response.ok)throw new Error('Unable to load current openings. Please try again.');const jobs=await response.json();if(!jobs.length){$('jobs').innerHTML='<div class="empty">There are no open positions matching your search right now. Please check again later.</div>';return;}$('jobs').innerHTML=jobs.map(job=>`<article class="job"><div><h2>${esc(job.title)}</h2><p class="muted">${esc(job.department)} · ${esc(job.location)} · ${esc(job.employment_type.replaceAll('_',' '))} · ${esc(job.work_mode)}</p><p>${esc(job.description||'Join our team and make an impact.')}</p><span class="badge">${money(job)}</span>${job.closing_date?`<span class="badge">Apply by ${esc(job.closing_date)}</span>`:''}</div><button type="button" data-job="${esc(job.requisition_id)}">Apply</button></article>`).join('');$('jobs').querySelectorAll('[data-job]').forEach(button=>button.addEventListener('click',()=>openApplication(jobs.find(job=>job.requisition_id===button.dataset.job))));}catch(error){$('jobs').innerHTML='<div class="empty">Openings could not be loaded.</div>';showError(error.message);}}
+    function openApplication(job){selectedJob=job;$('job-title').textContent=`Apply: ${job.title}`;$('job-meta').textContent=`${job.department} · ${job.location}`;$('form-error').style.display='none';$('apply-form').reset();$('apply-dialog').showModal();}
+    $('search-button').addEventListener('click',loadJobs);$('search').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();loadJobs();}});$('close-dialog').addEventListener('click',()=>$('apply-dialog').close());$('cancel-apply').addEventListener('click',()=>$('apply-dialog').close());
+    $('apply-form').addEventListener('submit',async event=>{event.preventDefault();if(!selectedJob)return;const form=new FormData(event.currentTarget);const candidate={first_name:form.get('first_name'),last_name:form.get('last_name'),email:form.get('email'),phone:form.get('phone')||null,location:form.get('location')||null,total_experience_months:Number(form.get('total_experience_months')),education_level:form.get('education_level')||null,education_summary:form.get('education_summary')||null,skills:String(form.get('skills')||'').split(',').map(value=>value.trim()).filter(Boolean)};try{const response=await fetch(`${api}/public/applications`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requisition_id:selectedJob.requisition_id,candidate,privacy_consent:form.get('privacy_consent')==='on'})});const result=await response.json();if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'Application could not be submitted.');$('apply-dialog').close();$('success').textContent=`${result.message} Reference: ${result.application_id}`;$('success').style.display='block';window.scrollTo({top:0,behavior:'smooth'});}catch(error){showError(error.message,'form-error');}});
+    loadJobs();
+  </script>
+</body>
+</html>
